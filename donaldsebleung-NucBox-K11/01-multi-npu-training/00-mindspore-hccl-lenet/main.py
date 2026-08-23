@@ -42,7 +42,7 @@ def transform_ds(dataset, batch_size):
 MLflow logging callback with accuracy
 """
 class MLflowLogging(Callback):
-    def __init__(self, run_name, network_type, loss_fn, learning_rate, batch_size, epochs, weight_decay=0.0, momentum=0.0, optimizer='sgd'):
+    def __init__(self, run_name, network_type, loss_fn, learning_rate, batch_size, epochs, num_shards, shard_id, weight_decay=0.0, momentum=0.0, optimizer='sgd'):
         super().__init__()
         self.run_name = run_name
         self.network_type = network_type
@@ -53,6 +53,8 @@ class MLflowLogging(Callback):
         self.weight_decay = weight_decay
         self.momentum = momentum
         self.optimizer = optimizer
+        self.num_shards = num_shards
+        self.shard_id = shard_id
 
         self.run = mlflow.start_run(run_name=self.run_name)
         hyperparameters = {
@@ -63,7 +65,9 @@ class MLflowLogging(Callback):
             'optimizer': self.optimizer,
             'batch_size': self.batch_size,
             'network_type': self.network_type,
-            'epochs': self.epochs
+            'epochs': self.epochs,
+            'num_shards': num_shards,
+            'shard_id': shard_id
         }
         mlflow.log_params(hyperparameters)
 
@@ -103,9 +107,8 @@ def main():
         print(f'Using MLflow tracking URI: {MLFLOW_TRACKING_URI}')
         print(f'Using Matplotlib backend: {MPLBACKEND}')
 
-    if rank_id == 0:
-        experiment_name = '01-multi-npu-training'
-        experiment = mlflow.set_experiment(experiment_name=experiment_name)
+    experiment_name = '01-multi-npu-training'
+    experiment = mlflow.set_experiment(experiment_name=experiment_name)
 
     dataset_dir = 'data/fashion/'
     if rank_id == 0:
@@ -233,19 +236,19 @@ def main():
         optimizer=optimizer,
         metrics={'accuracy', 'loss'}
     )
-    callbacks = []
-    if rank_id == 0:
-        callbacks.extend([
-            LossMonitor(per_print_times=10),
-            MLflowLogging(
-                run_name=run_name,
-                network_type=network_type,
-                loss_fn=loss_fn_str,
-                learning_rate=learning_rate,
-                batch_size=batch_size,
-                epochs=epochs
-            )
-        ])
+    callbacks = [
+        LossMonitor(per_print_times=10),
+        MLflowLogging(
+            run_name=f'{run_name}-rank-{rank_id}',
+            network_type=network_type,
+            loss_fn=loss_fn_str,
+            learning_rate=learning_rate,
+            batch_size=batch_size,
+            epochs=epochs,
+            num_shards=rank_size,
+            shard_id=rank_id
+        )
+    ]
     model.fit(
         epoch=epochs,
         train_dataset=train_ds,

@@ -7,8 +7,6 @@ CMD [ \
     "msrun", \
     "--worker_num=2", \
     "--local_worker_num=2", \
-    "--master_addr=127.0.0.1", \
-    "--master_port=10969", \
     "--join=True", \
     "python", \
     "/app/main.py" \
