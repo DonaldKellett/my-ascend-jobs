@@ -1,6 +1,5 @@
 import gzip
 import matplotlib.pyplot as plt
-import mindspore
 import mindspore.amp as amp
 import mindspore.communication as communication
 import mindspore.context as context
@@ -108,7 +107,7 @@ def main():
         print(f'Using Matplotlib backend: {MPLBACKEND}')
 
     experiment_name = '01-multi-npu-training'
-    experiment = mlflow.set_experiment(experiment_name=experiment_name)
+    mlflow.set_experiment(experiment_name=experiment_name)
 
     dataset_dir = 'data/fashion/'
     if rank_id == 0:
